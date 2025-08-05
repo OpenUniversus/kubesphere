@@ -1,4 +1,5 @@
 /*
+ * Copyright 2024 the KubeSphere Authors.
  * Please refer to the LICENSE file in the root directory of the project.
  * https://github.com/kubesphere/kubesphere/blob/master/LICENSE
  */
@@ -13,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 
@@ -51,6 +53,10 @@ type oidcProvider struct {
 
 	// Scope specifies optional requested permissions.
 	Scopes []string `json:"scopes" yaml:"scopes"`
+
+	// Redirection to RP After Logout
+	// See https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RedirectionAfterLogout
+	PostLogoutRedirectURI string `json:"postLogoutRedirectURI" yaml:"postLogoutRedirectURI"`
 
 	// GetUserInfo uses the userinfo endpoint to get additional claims for the token.
 	// This is especially useful where upstreams return "thin" id tokens
@@ -153,6 +159,17 @@ func (f *oidcProviderFactory) Create(opts options.DynamicOptions) (identityprovi
 		oidcProvider.Endpoint.UserInfoURL, _ = providerJSON["userinfo_endpoint"].(string)
 		oidcProvider.Endpoint.JWKSURL, _ = providerJSON["jwks_uri"].(string)
 		oidcProvider.Endpoint.EndSessionURL, _ = providerJSON["end_session_endpoint"].(string)
+
+		endSessionUrl, err := url.Parse(oidcProvider.Endpoint.EndSessionURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse end session url: %v", err)
+		}
+		endSessionQuery := endSessionUrl.Query()
+		endSessionQuery.Add("post_logout_redirect_uri", oidcProvider.PostLogoutRedirectURI)
+		endSessionQuery.Add("client_id", oidcProvider.ClientID)
+		endSessionUrl.RawQuery = endSessionQuery.Encode()
+
+		oidcProvider.Endpoint.EndSessionURL = endSessionUrl.String()
 		oidcProvider.Provider = provider
 		oidcProvider.Verifier = provider.Verifier(&oidc.Config{
 			// TODO: support HS256

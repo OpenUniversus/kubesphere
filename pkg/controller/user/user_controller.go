@@ -1,4 +1,5 @@
 /*
+ * Copyright 2024 the KubeSphere Authors.
  * Please refer to the LICENSE file in the root directory of the project.
  * https://github.com/kubesphere/kubesphere/blob/master/LICENSE
  */
@@ -268,42 +269,16 @@ func (r *Reconciler) reconcileUserStatus(ctx context.Context, user *iamv1beta1.U
 		return nil
 	}
 
-	if user.Spec.EncryptedPassword == "" {
-		if user.Labels[iamv1beta1.IdentifyProviderLabel] != "" {
-			// mapped user from another identity provider always active until disabled
-			if user.Status.State != iamv1beta1.UserActive {
-				user.Status = iamv1beta1.UserStatus{
-					State:              iamv1beta1.UserActive,
-					LastTransitionTime: &metav1.Time{Time: time.Now()},
-				}
-				if err := r.Update(ctx, user, &client.UpdateOptions{}); err != nil {
-					return err
-				}
-			}
-		} else {
-			// empty password is not allowed for normal user
-			if user.Status.State != iamv1beta1.UserDisabled {
-				user.Status = iamv1beta1.UserStatus{
-					State:              iamv1beta1.UserDisabled,
-					LastTransitionTime: &metav1.Time{Time: time.Now()},
-				}
-				if err := r.Update(ctx, user, &client.UpdateOptions{}); err != nil {
-					return err
-				}
-			}
-		}
-		// skip auth limit check
-		return nil
-	}
-
 	// becomes active after password encrypted
-	if user.Status.State == "" && isEncrypted(user.Spec.EncryptedPassword) {
-		user.Status = iamv1beta1.UserStatus{
-			State:              iamv1beta1.UserActive,
-			LastTransitionTime: &metav1.Time{Time: time.Now()},
-		}
-		if err := r.Update(ctx, user, &client.UpdateOptions{}); err != nil {
-			return err
+	if user.Status.State == "" {
+		if user.Spec.EncryptedPassword == "" || isEncrypted(user.Spec.EncryptedPassword) {
+			user.Status = iamv1beta1.UserStatus{
+				State:              iamv1beta1.UserActive,
+				LastTransitionTime: &metav1.Time{Time: time.Now()},
+			}
+			if err := r.Update(ctx, user, &client.UpdateOptions{}); err != nil {
+				return err
+			}
 		}
 	}
 

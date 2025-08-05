@@ -1,3 +1,9 @@
+/*
+ * Copyright 2024 the KubeSphere Authors.
+ * Please refer to the LICENSE file in the root directory of the project.
+ * https://github.com/kubesphere/kubesphere/blob/master/LICENSE
+ */
+
 package v2
 
 const (
@@ -38,6 +44,7 @@ const (
 	MaxImageWidth               = 128
 	ApplicationNamespace        = "extension-openpitrix"
 	StoreCleanFinalizer         = "storeCleanFinalizer.application.kubesphere.io"
+	CleanupFinalizer            = "application.kubesphere.io/cleanup"
 	SystemWorkspace             = "system-workspace"
 	// App review status: draft, submitted, passed, rejected, suspended, active
 	ReviewStatusDraft     = "draft"

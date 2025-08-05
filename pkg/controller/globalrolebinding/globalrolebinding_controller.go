@@ -1,4 +1,5 @@
 /*
+ * Copyright 2024 the KubeSphere Authors.
  * Please refer to the LICENSE file in the root directory of the project.
  * https://github.com/kubesphere/kubesphere/blob/master/LICENSE
  */
@@ -28,9 +29,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"kubesphere.io/kubesphere/pkg/constants"
 	kscontroller "kubesphere.io/kubesphere/pkg/controller"
 	"kubesphere.io/kubesphere/pkg/controller/cluster/predicate"
 	clusterutils "kubesphere.io/kubesphere/pkg/controller/cluster/utils"
+	"kubesphere.io/kubesphere/pkg/models/kubeconfig"
 	"kubesphere.io/kubesphere/pkg/utils/clusterclient"
 )
 
@@ -177,6 +180,11 @@ func (r *Reconciler) assignClusterAdminRole(ctx context.Context, clusterName str
 				Kind:     rbacv1.UserKind,
 				APIGroup: rbacv1.GroupName,
 				Name:     username,
+			},
+			{
+				Kind:      rbacv1.ServiceAccountKind,
+				Name:      fmt.Sprintf(kubeconfig.UserKubeConfigServiceAccountNameFormat, username),
+				Namespace: constants.KubeSphereNamespace,
 			},
 		}
 		clusterRoleBinding.RoleRef = rbacv1.RoleRef{

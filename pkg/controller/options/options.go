@@ -1,4 +1,5 @@
 /*
+ * Copyright 2024 the KubeSphere Authors.
  * Please refer to the LICENSE file in the root directory of the project.
  * https://github.com/kubesphere/kubesphere/blob/master/LICENSE
  */
@@ -15,6 +16,7 @@ import (
 
 	"kubesphere.io/kubesphere/pkg/apiserver/authentication"
 	"kubesphere.io/kubesphere/pkg/models/composedapp"
+	"kubesphere.io/kubesphere/pkg/models/kubeconfig"
 	"kubesphere.io/kubesphere/pkg/models/terminal"
 	"kubesphere.io/kubesphere/pkg/multicluster"
 	"kubesphere.io/kubesphere/pkg/simple/client/k8s"
@@ -24,6 +26,7 @@ type Options struct {
 	KubernetesOptions     *k8s.Options
 	AuthenticationOptions *authentication.Options
 	MultiClusterOptions   *multicluster.Options
+	KubeconfigOptions     *kubeconfig.Options
 	TerminalOptions       *terminal.Options
 	ComposedAppOptions    *composedapp.Options
 	HelmExecutorOptions   *HelmExecutorOptions

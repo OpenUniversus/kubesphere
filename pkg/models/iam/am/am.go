@@ -1,4 +1,5 @@
 /*
+ * Copyright 2024 the KubeSphere Authors.
  * Please refer to the LICENSE file in the root directory of the project.
  * https://github.com/kubesphere/kubesphere/blob/master/LICENSE
  */
@@ -23,6 +24,8 @@ import (
 
 	"kubesphere.io/kubesphere/pkg/api"
 	"kubesphere.io/kubesphere/pkg/apiserver/query"
+	"kubesphere.io/kubesphere/pkg/constants"
+	"kubesphere.io/kubesphere/pkg/models/kubeconfig"
 	resourcev1beta1 "kubesphere.io/kubesphere/pkg/models/resources/v1beta1"
 	"kubesphere.io/kubesphere/pkg/utils/sliceutil"
 )
@@ -588,6 +591,11 @@ func (am *amOperator) CreateOrUpdateNamespaceRoleBinding(username string, namesp
 				APIGroup: iamv1beta1.SchemeGroupVersion.Group,
 				Name:     username,
 			},
+			{
+				Kind:      rbacv1.ServiceAccountKind,
+				Name:      fmt.Sprintf(kubeconfig.UserKubeConfigServiceAccountNameFormat, username),
+				Namespace: constants.KubeSphereNamespace,
+			},
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: iamv1beta1.SchemeGroupVersion.Group,
@@ -636,6 +644,11 @@ func (am *amOperator) CreateOrUpdateClusterRoleBinding(username string, role str
 				Kind:     iamv1beta1.ResourceKindUser,
 				APIGroup: iamv1beta1.SchemeGroupVersion.Group,
 				Name:     username,
+			},
+			{
+				Kind:      rbacv1.ServiceAccountKind,
+				Name:      fmt.Sprintf(kubeconfig.UserKubeConfigServiceAccountNameFormat, username),
+				Namespace: constants.KubeSphereNamespace,
 			},
 		},
 		RoleRef: rbacv1.RoleRef{

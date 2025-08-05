@@ -1,4 +1,5 @@
 /*
+ * Copyright 2024 the KubeSphere Authors.
  * Please refer to the LICENSE file in the root directory of the project.
  * https://github.com/kubesphere/kubesphere/blob/master/LICENSE
  */
@@ -9,18 +10,15 @@ import (
 	"context"
 	"time"
 
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog/v2"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	quotav1alpha2 "kubesphere.io/api/quota/v1alpha2"
-
-	lru "github.com/hashicorp/golang-lru"
-
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	utilwait "k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apiserver/pkg/storage"
+	"k8s.io/klog/v2"
+	"k8s.io/utils/lru"
+	quotav1alpha2 "kubesphere.io/api/quota/v1alpha2"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	utilquota "kubesphere.io/kubesphere/kube/pkg/quota/v1"
 )
@@ -38,11 +36,7 @@ type accessor struct {
 
 // newQuotaAccessor creates an object that conforms to the QuotaAccessor interface to be used to retrieve quota objects.
 func newQuotaAccessor(client client.Client) *accessor {
-	updatedCache, err := lru.New(100)
-	if err != nil {
-		// this should never happen
-		panic(err)
-	}
+	updatedCache := lru.New(100)
 
 	return &accessor{
 		client:                client,

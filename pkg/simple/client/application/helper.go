@@ -1,3 +1,9 @@
+/*
+ * Copyright 2024 the KubeSphere Authors.
+ * Please refer to the LICENSE file in the root directory of the project.
+ * https://github.com/kubesphere/kubesphere/blob/master/LICENSE
+ */
+
 package application
 
 import (
@@ -219,7 +225,7 @@ func CreateOrUpdateAppVersion(ctx context.Context, client runtimeclient.Client, 
 			Maintainer:  vRequest.Maintainers,
 			PullUrl:     vRequest.PullUrl,
 		}
-		appVersion.Finalizers = []string{appv2.StoreCleanFinalizer}
+		appVersion.Finalizers = []string{appv2.CleanupFinalizer}
 
 		labels := appVersion.GetLabels()
 		if labels == nil {

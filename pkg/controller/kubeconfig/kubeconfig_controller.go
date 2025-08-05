@@ -1,4 +1,5 @@
 /*
+ * Copyright 2024 the KubeSphere Authors.
  * Please refer to the LICENSE file in the root directory of the project.
  * https://github.com/kubesphere/kubesphere/blob/master/LICENSE
  */
@@ -17,6 +18,7 @@ import (
 
 	certificatesv1 "k8s.io/api/certificates/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/client-go/rest"
@@ -24,19 +26,17 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 	certutil "k8s.io/client-go/util/cert"
 	"k8s.io/klog/v2"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
-
-	"kubesphere.io/kubesphere/pkg/constants"
-	"kubesphere.io/kubesphere/pkg/models/kubeconfig"
-	"kubesphere.io/kubesphere/pkg/utils/pkiutil"
-
-	kscontroller "kubesphere.io/kubesphere/pkg/controller"
-
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"kubesphere.io/kubesphere/pkg/constants"
+	kscontroller "kubesphere.io/kubesphere/pkg/controller"
+	"kubesphere.io/kubesphere/pkg/models/kubeconfig"
+	"kubesphere.io/kubesphere/pkg/utils/pkiutil"
 )
 
 const (
@@ -50,7 +50,8 @@ var _ reconcile.Reconciler = &Reconciler{}
 // Reconciler reconciles a User object
 type Reconciler struct {
 	client.Client
-	config *rest.Config
+	config  *rest.Config
+	options *kubeconfig.Options
 }
 
 func (r *Reconciler) Name() string {
@@ -60,6 +61,7 @@ func (r *Reconciler) Name() string {
 func (r *Reconciler) SetupWithManager(mgr *kscontroller.Manager) error {
 	r.Client = mgr.GetClient()
 	r.config = mgr.K8sClient.Config()
+	r.options = mgr.KubeconfigOptions
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(controllerName).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 1}).
@@ -92,7 +94,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 func (r *Reconciler) UpdateSecret(ctx context.Context, secret *corev1.Secret) error {
 	// already exist and cert will not expire in 3 days
-	if isValid(secret) {
+	if r.isValid(secret) {
 		return nil
 	}
 
@@ -146,15 +148,24 @@ func (r *Reconciler) UpdateSecret(ctx context.Context, secret *corev1.Secret) er
 		return err
 	}
 
-	if err = r.createCSR(ctx, username); err != nil {
-		klog.Errorf("Failed to create CSR for user %s: %v", username, err)
-		return err
+	if r.options.AuthMode == kubeconfig.AuthModeClientCertificate {
+		if err = r.createCSR(ctx, username); err != nil {
+			klog.Errorf("Failed to create CSR for user %s: %v", username, err)
+			return err
+		}
+	}
+
+	if r.options.AuthMode == kubeconfig.AuthModeServiceAccountToken {
+		if err = r.createServiceAccount(ctx, username); err != nil {
+			klog.Errorf("Failed to create sa for user %s: %v", username, err)
+			return err
+		}
 	}
 
 	return nil
 }
 
-func isValid(secret *corev1.Secret) bool {
+func (r *Reconciler) isValid(secret *corev1.Secret) bool {
 	username := secret.Labels[constants.UsernameLabelKey]
 
 	data := secret.Data[kubeconfig.FileName]
@@ -169,14 +180,19 @@ func isValid(secret *corev1.Secret) bool {
 	}
 
 	if authInfo, ok := config.AuthInfos[username]; ok {
-		clientCert, err := certutil.ParseCertsPEM(authInfo.ClientCertificateData)
-		if err != nil {
-			klog.Warningf("Failed to parse client certificate for user %s: %v", username, err)
-			return false
+		if r.options.AuthMode == kubeconfig.AuthModeServiceAccountToken && authInfo.Token != "" {
+			return true
 		}
-		for _, cert := range clientCert {
-			if cert.NotAfter.After(time.Now().Add(residual)) {
-				return true
+		if r.options.AuthMode == kubeconfig.AuthModeClientCertificate {
+			clientCert, err := certutil.ParseCertsPEM(authInfo.ClientCertificateData)
+			if err != nil {
+				klog.Warningf("Failed to parse client certificate for user %s: %v", username, err)
+				return false
+			}
+			for _, cert := range clientCert {
+				if cert.NotAfter.After(time.Now().Add(residual)) {
+					return true
+				}
 			}
 		}
 	} else {
@@ -245,5 +261,45 @@ func (r *Reconciler) createCSR(ctx context.Context, username string) error {
 		return err
 	}
 
+	return nil
+}
+
+func (r *Reconciler) createServiceAccount(ctx context.Context, username string) error {
+	saName := fmt.Sprintf("kubesphere.users.%s", username)
+	sa := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      saName,
+			Namespace: constants.KubeSphereNamespace,
+			Labels:    map[string]string{constants.UsernameLabelKey: username},
+		},
+	}
+
+	if err := r.Create(ctx, sa); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			klog.Errorf("Failed to create service account for user %s: %v", username, err)
+			return err
+		}
+	}
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s.token", saName),
+			Namespace: constants.KubeSphereNamespace,
+			Annotations: map[string]string{
+				corev1.ServiceAccountNameKey: saName,
+			},
+			Labels: map[string]string{
+				constants.UsernameLabelKey: username,
+			},
+		},
+		Type: corev1.SecretTypeServiceAccountToken,
+	}
+
+	if err := r.Create(ctx, secret); err != nil {
+		if !errors.IsAlreadyExists(err) {
+			klog.Errorf("Failed to create service account for user %s: %v", username, err)
+			return err
+		}
+	}
 	return nil
 }

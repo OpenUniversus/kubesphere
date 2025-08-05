@@ -1,3 +1,9 @@
+/*
+ * Copyright 2024 the KubeSphere Authors.
+ * Please refer to the LICENSE file in the root directory of the project.
+ * https://github.com/kubesphere/kubesphere/blob/master/LICENSE
+ */
+
 package v1beta1
 
 const (
@@ -54,8 +60,7 @@ const (
 	ScopeLabel                            = "iam.kubesphere.io/scope"
 	UserReferenceLabel                    = "iam.kubesphere.io/user-ref"
 	RoleReferenceLabel                    = "iam.kubesphere.io/role-ref"
-	IdentifyProviderLabel                 = "iam.kubesphere.io/identify-provider"
-	OriginUIDLabel                        = "iam.kubesphere.io/origin-uid"
+	IdentityProviderAnnotation            = "iam.kubesphere.io/identity-provider"
 	ServiceAccountReferenceLabel          = "iam.kubesphere.io/serviceaccount-ref"
 	FieldEmail                            = "email"
 	ExtraEmail                            = FieldEmail
@@ -71,10 +76,8 @@ const (
 	NamespaceAdmin                        = "admin"
 	ClusterAdmin                          = "cluster-admin"
 	PreRegistrationUser                   = "system:pre-registration"
-	OTPAuthRequiredUser                   = "system:otp-auth-required"
 	ResourcePluralGroup                   = "groups"
 	GroupReferenceLabel                   = "iam.kubesphere.io/group-ref"
 	GroupParent                           = "iam.kubesphere.io/group-parent"
 	ResourcePluralGroupBinding            = "groupbindings"
-	GroupName                             = "iam.kubesphere.io"
 )

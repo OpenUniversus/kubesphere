@@ -1,4 +1,5 @@
 /*
+ * Copyright 2024 the KubeSphere Authors.
  * Please refer to the LICENSE file in the root directory of the project.
  * https://github.com/kubesphere/kubesphere/blob/master/LICENSE
  */
@@ -109,7 +110,7 @@ func DefaultObjectMetaFilter(item metav1.ObjectMeta, filter query.Filter) bool {
 		}
 		return false
 	// /namespaces?page=1&limit=10&name=default
-	case query.FieldName:
+	case query.FieldName, query.FieldNameAndAlias:
 		displayName := item.GetAnnotations()[constants.DisplayNameAnnotationKey]
 		if displayName != "" && strings.Contains(displayName, string(filter.Value)) {
 			return true
